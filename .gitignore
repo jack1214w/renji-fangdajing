@@ -1,0 +1,5 @@
+# 教師手冊含教師密碼，不上傳
+*.docx
+
+.DS_Store
+node_modules/
