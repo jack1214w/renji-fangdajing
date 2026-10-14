@@ -463,7 +463,7 @@ const ENDINGS = {
 /* ============ 狀態 ============ */
 const S = {
   phase:'case', scene:'classroom', px:0, py:0, dir:'down',
-  ap:26, apMax:26, clues:new Set(), layers:[false,false,false], asked:{}, seen:{},
+  ap:25, apMax:25, clues:new Set(), layers:[false,false,false], asked:{}, seen:{},
   moving:[], anim:null, pending:null, ending:null, repaired:false
 };
 const $ = s => document.querySelector(s);
@@ -955,7 +955,7 @@ function caseFile(){
     + '<li>找到她，然後決定要對她說什麼</li></ol></div>'
     + '<p class="warn">注意：這裡沒有壞人。每個人都只是說了一句，自己早就忘記的話。</p>'
     + '<div class="ctrl"><b>怎麼玩</b><br>點地板走過去，點發亮的東西觀察，點同學問話。也可以用下面的方向鍵。<br>'
-    + '午休只剩 <b>26 格</b>時間。走路不花時間，觀察和問話各花 1 格。<br>'
+    + '午休只剩 <b>25 格</b>時間。走路不花時間，觀察和問話各花 1 格。<br>'
     + '東西很多，但時間不夠全部點完。先想一想：哪些地方最可能留下她的痕跡？</div>'
     + '<button class="btn gold" id="start">開始調查</button></div></div>';
   $('#start').onclick = () => {
