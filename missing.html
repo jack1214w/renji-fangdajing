@@ -18,7 +18,8 @@
 [hidden]{display:none!important}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.7;
-  padding-inline:12px;padding-block:12px 20px;-webkit-text-size-adjust:100%}
+  padding-inline:12px;padding-block:12px 20px;-webkit-text-size-adjust:100%;touch-action:manipulation}
+canvas{touch-action:none}
 .wrap{max-width:1000px;margin-inline:auto;display:flex;flex-direction:column;gap:10px}
 
 /* 像素邊框 */
@@ -38,6 +39,13 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15p
   font-family:var(--px);font-size:9px;border:2px solid var(--edge)}
 .lamp.on{background:var(--green);color:#10331c}
 .spacer{flex:1}
+@media (max-width:560px){
+  .hud{gap:6px;padding:8px 10px}
+  .hud .lbl{font-size:11px}
+  .hud .meter{font-size:10px}
+  .btn{padding:6px 9px;font-size:12px}
+  .lamp{width:24px;height:19px}
+}
 button{font:inherit;cursor:pointer}
 .btn{font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--ink);
   background:var(--panel2);border:2px solid var(--edge);box-shadow:0 3px 0 #0b0e12;border-radius:2px;padding:7px 12px}
@@ -62,12 +70,29 @@ canvas{image-rendering:pixelated;display:block;background:#0d1116;border:2px sol
 @media (prefers-reduced-motion:reduce){.toast{animation:toast-fade 2s steps(1) forwards}
   @keyframes toast-fade{0%,95%{opacity:1}100%{opacity:0}}}
 
-/* 方向鍵：浮在場景右下角 */
-.pad{position:absolute;right:12px;bottom:12px;display:grid;grid-template-columns:repeat(3,42px);
-  grid-template-rows:repeat(3,42px);gap:3px;opacity:.9;z-index:5}
-.pad button{background:rgba(40,51,65,.92);border:2px solid var(--edge);box-shadow:0 3px 0 #0b0e12;color:var(--ink);
-  font-size:15px;border-radius:2px}
-@media (max-width:520px){.pad{grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px);right:6px;bottom:6px}}
+/* 虛擬搖桿：場景下方預留的空間，不會蓋到畫面 */
+.stage{padding-bottom:128px}
+.stick{position:absolute;left:16px;bottom:10px;z-index:6;display:flex;flex-direction:column;align-items:center;gap:6px;
+  touch-action:none;user-select:none;-webkit-user-select:none}
+.base{position:relative;width:104px;height:104px;border-radius:50%;touch-action:none;
+  background:radial-gradient(circle at 50% 42%, #2f3b49, #1d2530);
+  border:3px solid var(--edge);box-shadow:0 0 0 2px var(--hi), inset 0 3px 10px rgba(0,0,0,.5);
+  display:grid;place-items:center}
+.base .cross{position:absolute;inset:14px;
+  background:
+    linear-gradient(to right, transparent 46%, rgba(143,160,180,.25) 46% 54%, transparent 54%),
+    linear-gradient(to bottom, transparent 46%, rgba(143,160,180,.25) 46% 54%, transparent 54%);
+  border-radius:50%;pointer-events:none}
+.knob{width:46px;height:46px;border-radius:50%;background:var(--panel2);border:3px solid var(--edge);
+  box-shadow:0 4px 0 #0b0e12;pointer-events:none;transition:transform .09s ease-out}
+.stick.active .knob{transition:none;background:#3a4756}
+.sticklbl{font-size:11px;color:var(--dim);letter-spacing:.06em}
+@media (max-width:520px){
+  .stage{padding-bottom:116px}
+  .base{width:92px;height:92px}
+  .knob{width:40px;height:40px}
+  .stick{left:10px}
+}
 .pad button:active{transform:translateY(2px);box-shadow:0 1px 0 #0b0e12}
 .pad .mid{background:transparent;border:none;box-shadow:none;cursor:default}
 
@@ -166,11 +191,10 @@ canvas{image-rendering:pixelated;display:block;background:#0d1116;border:2px sol
   <div class="box stage" id="stage" hidden>
     <span class="place" id="place">CLASSROOM</span>
     <canvas id="cv" width="320" height="208"></canvas>
-    <p class="hintline" id="tipline">點地板走過去，點發亮的東西觀察，點同學問話。</p>
-    <div class="pad" id="pad">
-      <button class="mid"></button><button data-dir="0,-1">▲</button><button class="mid"></button>
-      <button data-dir="-1,0">◀</button><button class="mid"></button><button data-dir="1,0">▶</button>
-      <button class="mid"></button><button data-dir="0,1">▼</button><button class="mid"></button>
+    <p class="hintline" id="tipline">點地板走過去，或用左下角的搖桿移動。點發亮的東西觀察，點同學問話。</p>
+    <div class="stick" id="stick">
+      <div class="base" id="stickbase"><span class="cross"></span><div class="knob" id="knob"></div></div>
+      <span class="sticklbl">推動搖桿移動</span>
     </div>
   </div>
 
@@ -553,7 +577,7 @@ function drawChar(cx, cy, pal, dir, step){
 
 function fit(){
   const availW = Math.min(($('.wrap').clientWidth || 360) - 28, 1000);
-  const availH = Math.max(190, innerHeight * 0.56);
+  const availH = Math.max(150, Math.min(innerHeight * 0.56, innerHeight - 300));
   const s = Math.max(1, Math.floor(Math.min(availW/cv.width, availH/cv.height) * 2) / 2);
   cv.style.width = Math.round(cv.width * s) + 'px';
 }
@@ -691,10 +715,11 @@ function askMenu(n){
 }
 
 /* ============ 對話 UI ============ */
+function hideStick(){ const el = $('#stick'); if(el) el.hidden = true; if(typeof releaseStick === 'function') releaseStick(); }
 let dq = [], dafter = null;
 function say(who, lines, after){
   S.phase = 'dialog'; dq = lines.slice(); dafter = after || null;
-  $('#dlg').hidden = false; $('#pad').hidden = true; $('#dwho').textContent = who; $('#dopts').innerHTML = '';
+  $('#dlg').hidden = false; hideStick(); $('#dwho').textContent = who; $('#dopts').innerHTML = '';
   scrollTo({top:0});
   nextLine();
 }
@@ -709,7 +734,7 @@ function nextLine(){
 }
 function showOptions(who, prompt, opts){
   S.phase = 'dialog';
-  $('#dlg').hidden = false; $('#pad').hidden = true; $('#dwho').textContent = who; $('#dtext').textContent = prompt; $('#dmore').textContent = '';
+  $('#dlg').hidden = false; hideStick(); $('#dwho').textContent = who; $('#dtext').textContent = prompt; $('#dmore').textContent = '';
   scrollTo({top:0});
   const box = $('#dopts'); box.innerHTML = '';
   opts.forEach(o=>{
@@ -719,7 +744,7 @@ function showOptions(who, prompt, opts){
     box.appendChild(b);
   });
 }
-function closeDialog(){ $('#dlg').hidden = true; $('#pad').hidden = false; $('#dopts').innerHTML = ''; if(S.phase==='dialog') S.phase = 'play'; }
+function closeDialog(){ $('#dlg').hidden = true; $('#stick').hidden = false; $('#dopts').innerHTML = ''; if(S.phase==='dialog') S.phase = 'play'; }
 $('#dlg').addEventListener('click', e => { if(e.target.closest('.opt')) return; if($('#dopts').children.length) return; nextLine(); });
 
 /* ============ HUD ============ */
@@ -925,10 +950,40 @@ function stepDir(dx, dy){
   if(ex) return travel(ex);
   if(walkable(nx,ny)){ S.px = nx; S.py = ny; }
 }
-$('#pad').addEventListener('click', e => {
-  const d = e.target.dataset.dir; if(!d) return;
-  const [dx,dy] = d.split(',').map(Number); stepDir(dx,dy);
+/* 虛擬搖桿 */
+const stick = $('#stick'), stickBase = $('#stickbase'), knob = $('#knob');
+let stickId = null, stickRepeat = null, stickDir = null;
+function setStickDir(d){
+  const key = d ? d.join(',') : null;
+  if(key === stickDir) return;
+  stickDir = key;
+  clearInterval(stickRepeat); stickRepeat = null;
+  if(!d) return;
+  stepDir(d[0], d[1]);
+  stickRepeat = setInterval(() => { if(S.phase === 'play') stepDir(d[0], d[1]); }, 170);
+}
+function moveStick(ev){
+  const r = stickBase.getBoundingClientRect();
+  const dx = ev.clientX - (r.left + r.width/2), dy = ev.clientY - (r.top + r.height/2);
+  const max = r.width/2 - 20, len = Math.hypot(dx, dy) || 1;
+  const k = len > max ? max/len : 1;
+  knob.style.transform = 'translate(' + (dx*k) + 'px,' + (dy*k) + 'px)';
+  setStickDir(len < 14 ? null : (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? [1,0] : [-1,0]) : (dy > 0 ? [0,1] : [0,-1])));
+}
+function releaseStick(){
+  stickId = null; stick.classList.remove('active');
+  knob.style.transform = 'translate(0,0)';
+  setStickDir(null);
+}
+stickBase.addEventListener('pointerdown', ev => {
+  ev.preventDefault();
+  stickId = ev.pointerId; stickBase.setPointerCapture(ev.pointerId);
+  stick.classList.add('active'); moveStick(ev);
 });
+stickBase.addEventListener('pointermove', ev => { if(ev.pointerId === stickId) moveStick(ev); });
+['pointerup','pointercancel'].forEach(t =>
+  stickBase.addEventListener(t, ev => { if(ev.pointerId === stickId) releaseStick(); }));
+addEventListener('blur', releaseStick);
 addEventListener('keydown', e => {
   const k = {ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]}[e.key];
   if(k){ e.preventDefault(); stepDir(k[0],k[1]); }
