@@ -93,6 +93,19 @@ canvas{image-rendering:pixelated;display:block;background:#0d1116;border:2px sol
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font-size:12px;border:2px solid var(--edge);background:var(--panel2);padding:5px 9px;cursor:pointer}
 .chip.sel{border-color:var(--gold);background:#3a3524}
+/* 平面圖 */
+.plan{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:stretch}
+.room{display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;
+  background:var(--panel2);border:2px solid var(--edge);box-shadow:0 3px 0 #0b0e12;padding:8px 6px;
+  color:var(--ink);font-family:var(--sans);border-radius:2px;min-height:118px}
+.room canvas{display:block;border:1px solid #0b0e12;image-rendering:pixelated;max-width:100%}
+.room .rname{text-align:center;line-height:1.3}
+.room .rname b{display:block;font-size:13px}
+.room .rname span{font-family:var(--px);font-size:8px;color:var(--gold)}
+.room.here{border-color:var(--gold);background:#3a3524}
+.room.lock{opacity:.5;cursor:default;border-style:dashed}
+.room .lockbox{font-size:11px;color:var(--dim);display:grid;place-items:center;height:42px}
+@media (max-width:520px){.room{min-height:80px;padding:6px 4px}.room .rname b{font-size:11px}}
 .msg{font-size:13px;color:var(--red)}
 .msg.ok{color:var(--green)}
 
@@ -213,7 +226,8 @@ const SCENES = {
       '#.g.............T..#',
       '#########EE#########'
     ],
-    start:[10,10],
+    start:[10,10], floor:'3F',
+    exits:[{x:9,y:12,to:'hallway',at:[4,3]},{x:10,y:12,to:'hallway',at:[4,3]}],
     objects:[
       {x:7,y:6, name:'小禾的座位', clue:'A1', lines:[
         '她的書包還掛在椅子上。',
@@ -243,14 +257,20 @@ const SCENES = {
     name:'三樓走廊', code:'HALLWAY 3F',
     map:[
       '####################',
-      '#llll##nn###WWWWWWW#',
+      '#llll##nn###WWWWW###',
       '#..................#',
-      '#..................#',
-      '#..................#',
+      'E..................A',
+      '#.......U...V......#',
       '#==================#',
       '####################'
     ],
-    start:[4,3],
+    start:[4,3], floor:'3F',
+    exits:[
+      {x:0,y:3,to:'classroom',at:[10,10]},
+      {x:19,y:3,to:'artroom',at:[8,5]},
+      {x:8,y:4,to:'library',at:[9,9]},
+      {x:12,y:4,to:'garden',at:[10,5]}
+    ],
     objects:[
       {x:7,y:1, name:'佈告欄', clue:'C1', lines:[
         '佈告欄上貼著各種名單。',
@@ -284,9 +304,10 @@ const SCENES = {
       '#.......cc..cc.....#',
       '#..................#',
       '#..............C...#',
-      '####################'
+      '#########E##########'
     ],
-    start:[9,9],
+    start:[9,9], floor:'4F',
+    exits:[{x:9,y:11,to:'hallway',at:[8,3]}],
     objects:[
       {x:2,y:7, name:'借閱紀錄電腦', clue:'A3', lines:[
         '螢幕還亮著，停在這學期的借閱排行。',
@@ -323,9 +344,10 @@ const SCENES = {
       '#..cc...cc...cc..#',
       '#................#',
       '#.w...........X..#',
-      '##################'
+      '########E#########'
     ],
-    start:[8,5],
+    start:[8,5], floor:'3F',
+    exits:[{x:8,y:10,to:'hallway',at:[18,3]}],
     objects:[
       {x:14,y:9, name:'沒完成的作品', clue:'C3', lines:[
         '架子上有一張只畫了一半的圖。',
@@ -348,18 +370,23 @@ const SCENES = {
   garden:{
     name:'彩虹菜園', code:'GARDEN 1F',
     map:[
-      'HHHHHHHHHHHHHHHHHHHH',
+      'HHHHHHHHHHGHHHHHHHHH',
       ',,,,,,,,,,,,,,,,,,,,',
       ',,ssss,,,ssss,,,,,,,',
       ',,,,,,,,,,,,,,,,,,,,',
       ',,ssss,,,ssss,,,,p,,',
-      ',,,,,,,,,,,,,,,,,,,,',
+      ',,,,,,,,,,,,,,,,,,,G',
       ',,,,m,,,,,,,,,,,,,,,',
       ',,,,,,,,,,,,,,w,,,,,',
       ',,,,,,,,,,,,,,,,,,,,',
       'HHHHHHHHHHHHHHHHHHHH'
     ],
-    start:[10,5],
+    start:[10,5], floor:'1F',
+    exits:[
+      {x:10,y:0,to:'hallway',at:[12,3]},
+      {x:19,y:5,to:'flower',at:[8,8], need:true,
+       locked:'展演台後面是一小塊草地，平常沒什麼人去。現在過去，你也不知道要找什麼。'}
+    ],
     objects:[
       {x:4,y:6, name:'菜畦的牌子', clue:'B3', lines:[
         '一塊小木牌，插在最邊邊那一畦。正面寫著她的名字。',
@@ -381,9 +408,10 @@ const SCENES = {
 
   flower:{
     name:'展演台後的小花園', code:'SECRET GARDEN',
-    locked:true,
+    locked:true, floor:'1F',
+    exits:[{x:8,y:0,to:'garden',at:[17,5]}],
     map:[
-      'HHHHHHHHHHHHHHHH',
+      'HHHHHHHHGHHHHHHH',
       ',,,,,,,,,,,,,,,,',
       ',,,ff,,,,,,ff,,,',
       ',,,,,,,,,,,,,,,,',
@@ -433,6 +461,7 @@ const WALK = new Set(['.', ',']);
 const tileAt = (x,y) => { const m = map(); return (y<0||y>=m.length||x<0||x>=m[0].length) ? '#' : m[y][x]; };
 const npcAt = (x,y) => (SCENES[S.scene].npcs||[]).find(n => n.x===x && n.y===y);
 const objAt = (x,y) => (SCENES[S.scene].objects||[]).find(o => o.x===x && o.y===y);
+const exitAt = (x,y) => (SCENES[S.scene].exits||[]).find(e => e.x===x && e.y===y);
 const walkable = (x,y) => WALK.has(tileAt(x,y)) && !npcAt(x,y);
 
 /* ============ 繪圖 ============ */
@@ -458,7 +487,14 @@ function drawTile(ch, tx, ty){
     case 'c': px(x+3,y+2,10,8,'#7a5b3a'); px(x+3,y+10,2,5,'#5f462c'); px(x+11,y+10,2,5,'#5f462c'); break;
     case 'T': px(x,y+2,T,11,'#9b7444'); px(x,y+2,T,2,'#b18a57'); px(x+2,y+5,8,4,'#efe6cd'); break;
     case 'g': px(x+3,y+4,10,11,'#5a6069'); px(x+2,y+2,12,3,'#787f88'); px(x+6,y+6,1,7,'#464b52'); break;
-    case 'E': px(x,y,T,T,'#4a3f3a'); px(x+1,y+1,14,15,'#7c5a3a'); px(x+11,y+8,2,2,'#e3b95b'); break;
+    case 'E': px(x,y,T,T,'#4a3f3a'); px(x+1,y+1,14,15,'#7c5a3a'); px(x+2,y+2,12,6,'#95714a');
+      px(x+11,y+9,2,2,'#e3b95b'); break;
+    case 'U': px(x,y,T,T,'#8a6b4e'); px(x,y+1,T,3,'#b39066'); px(x,y+6,T,3,'#a8855d'); px(x,y+11,T,3,'#9b7a53');
+      px(x+6,y+4,4,2,'#e3b95b'); px(x+5,y+6,6,2,'#e3b95b'); break;
+    case 'V': px(x,y,T,T,'#8a6b4e'); px(x+2,y+1,12,3,'#6f5540'); px(x+1,y+6,14,3,'#7c5e46'); px(x,y+11,T,3,'#8a6b4e');
+      px(x+5,y+8,6,2,'#9fb7cf'); px(x+6,y+10,4,2,'#9fb7cf'); break;
+    case 'G': px(x,y,T,T,'#2f5c36'); px(x+1,y+2,14,12,'#a9896a'); px(x+3,y+2,1,12,'#6f5540'); px(x+8,y+2,1,12,'#6f5540');
+      px(x+13,y+2,1,12,'#6f5540'); px(x+1,y+7,14,1,'#6f5540'); break;
     case 'l': px(x,y,T,T,'#4a3f3a'); px(x+1,y+1,14,14,'#5b7083'); px(x+1,y+1,14,1,'#6d8599'); px(x+8,y+1,1,14,'#44576a');
       px(x+5,y+7,2,2,'#2f3c49'); px(x+12,y+7,2,2,'#2f3c49'); break;
     case 'n': px(x,y,T,T,'#4a3f3a'); px(x+1,y+1,14,14,'#8a6b4e'); px(x+3,y+3,5,6,'#efe6cd'); px(x+9,y+4,4,5,'#e8dcc2');
@@ -526,6 +562,13 @@ function draw(){
     px(o.x*T+6, o.y*T-5+Math.round(f), 4, 4, '#ffe9a8');
     px(o.x*T+7, o.y*T-6+Math.round(f), 2, 2, '#fff6d8');
   });
+  (SCENES[S.scene].exits||[]).forEach(e=>{
+    if(e.need && !S.layers.every(Boolean)) return;
+    const f = Math.abs(Math.sin(tick/26));
+    ctx.globalAlpha = .35 + f*.45;
+    px(e.x*T+5, e.y*T+5, 6, 6, '#ffe9a8');
+    ctx.globalAlpha = 1;
+  });
   (SCENES[S.scene].npcs||[]).forEach(n=>{
     drawChar(n.x, n.y, PAL[n.pal], 'down', Math.floor(tick/22)%2);
     if(!S.asked[S.scene+n.who]){
@@ -583,6 +626,18 @@ function approach(x, y, then){
 function spendAP(){
   S.ap--; updateHUD();
   if(S.ap <= 0){ setTimeout(()=>endGame('B', true), 600); }
+}
+function travel(ex){
+  if(ex.need && !S.layers.every(Boolean)) return say('', [ex.locked]);
+  const to = SCENES[ex.to];
+  S.scene = ex.to; S.px = ex.at[0]; S.py = ex.at[1]; S.moving = []; S.pending = null;
+  dims = ''; updateHUD();
+  if(ex.to === 'flower' && !S.seen.flowerIntro){
+    S.seen.flowerIntro = true;
+    say('小花園', ['穿過展演台後面，有一小塊沒什麼人會來的草地。','小禾坐在長椅旁邊。']);
+  } else {
+    say(to.name, ['你來到' + to.name + '。']);
+  }
 }
 function openObject(o){
   const key = S.scene + o.name;
@@ -715,20 +770,62 @@ function openBoard(){
   });
 }
 
+/* 地圖：平面圖排法。cell = [格線位置, 場景代號] */
+const PLAN = [
+  { k:'library',   col:2, row:1 },
+  { k:'classroom', col:1, row:2 },
+  { k:'hallway',   col:2, row:2 },
+  { k:'artroom',   col:3, row:2 },
+  { k:'garden',    col:2, row:3 },
+  { k:'flower',    col:3, row:3 }
+];
+const MINI = {'#':'#4a3f3a','W':'#9fc6d8','b':'#2f4a3e','.':'#8a6b4e','d':'#b98f57','D':'#e3b95b','c':'#7a5b3a',
+  'T':'#9b7444','g':'#5a6069','E':'#e3b95b','U':'#e3b95b','V':'#9fb7cf','G':'#a9896a','l':'#5b7083','n':'#8a6b4e',
+  '=':'#8e9aa8','B':'#6b4e2e','k':'#7fa9d8','t':'#b98f57','R':'#7a5b3a','C':'#9a6f4a','a':'#8a7a52','A':'#efe6cd',
+  'X':'#d9b7c4','w':'#5a6069',',':'#5d8f4e','s':'#6b4a33','m':'#d8c9a4','p':'#3f7a46','H':'#2f5c36','f':'#e6a3b5'};
+function miniMap(k, px_){
+  const m = SCENES[k].map, w = m[0].length, h = m.length;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ g.fillStyle = MINI[m[y][x]] || '#8a6b4e'; g.fillRect(x,y,1,1); }
+  if(k === S.scene){ g.fillStyle = '#ffffff'; g.fillRect(S.px, S.py, 1, 1); }
+  c.style.width = (w*px_) + 'px';
+  return c;
+}
 function openMap(){
-  const places = Object.keys(SCENES).filter(k => !SCENES[k].locked || S.layers.every(Boolean));
-  overlay('<h2>MAP　晨星國小</h2><p class="empty">走路不花時間。點一個地方過去。</p>'
-    + places.map(k => '<button class="btn" data-go="'+k+'" style="text-align:left">'
-        + (k===S.scene ? '▶ ' : '　') + SCENES[k].name + '</button>').join('')
+  const unlocked = k => !SCENES[k].locked || S.layers.every(Boolean);
+  overlay('<h2>MAP　晨星國小</h2><p class="empty">走路不花時間。點一個地方過去。白點是你現在的位置。</p>'
+    + '<div class="plan" id="plan"></div>'
     + '<button class="btn ghost" id="x">關閉</button>',
     el => {
       el.querySelector('#x').onclick = closeOverlay;
-      el.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
-        const k = b.dataset.go; closeOverlay();
-        if(k === S.scene) return;
-        S.scene = k; S.px = SCENES[k].start[0]; S.py = SCENES[k].start[1]; S.moving = []; S.pending = null;
-        updateHUD();
-        if(k === 'flower') say('小花園', ['穿過展演台後面，有一小塊沒什麼人會來的草地。','小禾坐在長椅旁邊。']);
+      const plan = el.querySelector('#plan');
+      PLAN.forEach(p => {
+        const k = p.k, open = unlocked(k), here = k === S.scene;
+        const cell = document.createElement(open ? 'button' : 'div');
+        cell.className = 'room' + (here ? ' here' : '') + (open ? '' : ' lock');
+        cell.style.gridColumn = p.col; cell.style.gridRow = p.row;
+        const head = document.createElement('div');
+        head.className = 'rname';
+        head.innerHTML = '<b>' + (open ? SCENES[k].name : '？？？') + '</b><span>' + (SCENES[k].floor||'') + '</span>';
+        if(open){ cell.appendChild(miniMap(k, 4.2)); }
+        else {
+          const ph = document.createElement('div'); ph.className = 'lockbox'; ph.textContent = '尚未解鎖';
+          cell.appendChild(ph);
+        }
+        cell.appendChild(head);
+        if(open) cell.onclick = () => {
+          closeOverlay();
+          if(k === S.scene) return;
+          S.scene = k; S.px = SCENES[k].start[0]; S.py = SCENES[k].start[1];
+          S.moving = []; S.pending = null; dims = ''; updateHUD();
+          if(k === 'flower' && !S.seen.flowerIntro){
+            S.seen.flowerIntro = true;
+            say('小花園', ['穿過展演台後面，有一小塊沒什麼人會來的草地。','小禾坐在長椅旁邊。']);
+          }
+        };
+        plan.appendChild(cell);
       });
     });
 }
@@ -790,18 +887,20 @@ cv.addEventListener('click', ev => {
   const r = cv.getBoundingClientRect();
   const x = Math.floor((ev.clientX - r.left) / (r.width / cv.width) / T);
   const y = Math.floor((ev.clientY - r.top) / (r.height / cv.height) / T);
-  const n = npcAt(x,y), o = objAt(x,y);
+  const n = npcAt(x,y), o = objAt(x,y), ex = exitAt(x,y);
   if(n) return approach(x, y, () => openNPC(n));
   if(o) return approach(x, y, () => openObject(o));
+  if(ex) return approach(x, y, () => travel(ex));
   if(walkable(x,y)) goTo(x,y);
 });
 function stepDir(dx, dy){
   if(S.phase !== 'play' || S.moving.length) return;
   const nx = S.px+dx, ny = S.py+dy;
   S.dir = dx>0?'right':dx<0?'left':dy>0?'down':'up';
-  const n = npcAt(nx,ny), o = objAt(nx,ny);
+  const n = npcAt(nx,ny), o = objAt(nx,ny), ex = exitAt(nx,ny);
   if(n) return openNPC(n);
   if(o) return openObject(o);
+  if(ex) return travel(ex);
   if(walkable(nx,ny)){ S.px = nx; S.py = ny; }
 }
 $('#pad').addEventListener('click', e => {
