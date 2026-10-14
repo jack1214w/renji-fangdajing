@@ -30,7 +30,8 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15p
 .hud .meter{display:flex;align-items:center;gap:8px;font-family:var(--px);font-size:11px;letter-spacing:.04em}
 .hud .lbl{font-family:var(--sans);font-size:12px;color:var(--dim);letter-spacing:.08em}
 .pips{display:flex;gap:3px}
-.pips i{width:7px;height:14px;background:var(--gold);display:block}
+.pips i{width:6px;height:14px;background:var(--gold);display:block}
+@media (max-width:620px){.pips i{width:4px}}
 .pips i.off{background:#39424e}
 .lamps{display:flex;gap:6px}
 .lamp{width:30px;height:22px;display:grid;place-items:center;background:#39424e;color:#8e9aa8;
@@ -462,7 +463,7 @@ const ENDINGS = {
 /* ============ 狀態 ============ */
 const S = {
   phase:'case', scene:'classroom', px:0, py:0, dir:'down',
-  ap:20, clues:new Set(), layers:[false,false,false], asked:{}, seen:{},
+  ap:26, apMax:26, clues:new Set(), layers:[false,false,false], asked:{}, seen:{},
   moving:[], anim:null, pending:null, ending:null, repaired:false
 };
 const $ = s => document.querySelector(s);
@@ -724,7 +725,7 @@ $('#dlg').addEventListener('click', e => { if(e.target.closest('.opt')) return; 
 /* ============ HUD ============ */
 function updateHUD(){
   $('#apnum').textContent = String(S.ap).padStart(2,'0');
-  $('#pips').innerHTML = Array.from({length:20}, (_,i) => '<i class="'+(i<S.ap?'':'off')+'"></i>').join('');
+  $('#pips').innerHTML = Array.from({length:S.apMax}, (_,i) => '<i class="'+(i<S.ap?'':'off')+'"></i>').join('');
   $('#cluenum').textContent = S.clues.size + '/9';
   $('#lamps').innerHTML = LAYERS.map((L,i) => '<span class="lamp '+(S.layers[i]?'on':'')+'">'+L.name+'</span>').join('');
   $('#place').textContent = SCENES[S.scene].code;
@@ -954,7 +955,8 @@ function caseFile(){
     + '<li>找到她，然後決定要對她說什麼</li></ol></div>'
     + '<p class="warn">注意：這裡沒有壞人。每個人都只是說了一句，自己早就忘記的話。</p>'
     + '<div class="ctrl"><b>怎麼玩</b><br>點地板走過去，點發亮的東西觀察，點同學問話。也可以用下面的方向鍵。<br>'
-    + '午休只剩 <b>20 格</b>時間。走路不花時間，觀察和問話各花 1 格。</div>'
+    + '午休只剩 <b>26 格</b>時間。走路不花時間，觀察和問話各花 1 格。<br>'
+    + '東西很多，但時間不夠全部點完。先想一想：哪些地方最可能留下她的痕跡？</div>'
     + '<button class="btn gold" id="start">開始調查</button></div></div>';
   $('#start').onclick = () => {
     closeOverlay();
