@@ -50,6 +50,17 @@ button{font:inherit;cursor:pointer}
 canvas{image-rendering:pixelated;display:block;background:#0d1116;border:2px solid var(--edge);margin-inline:auto}
 .hintline{font-size:12px;color:var(--dim);text-align:center;margin:0}
 
+/* 地點提示：2 秒後自動消失 */
+.toast{position:absolute;left:50%;top:40px;transform:translateX(-50%);z-index:6;pointer-events:none;
+  background:rgba(20,26,33,.92);border:2px solid var(--edge);box-shadow:0 0 0 2px var(--hi);
+  padding:8px 18px;display:flex;align-items:baseline;gap:10px;animation:toast 2s ease forwards}
+.toast b{font-size:16px;letter-spacing:.06em}
+.toast span{font-family:var(--px);font-size:9px;color:var(--gold)}
+@keyframes toast{0%{opacity:0;transform:translate(-50%,-6px)}12%{opacity:1;transform:translate(-50%,0)}
+  75%{opacity:1}100%{opacity:0;transform:translate(-50%,-4px)}}
+@media (prefers-reduced-motion:reduce){.toast{animation:toast-fade 2s steps(1) forwards}
+  @keyframes toast-fade{0%,95%{opacity:1}100%{opacity:0}}}
+
 /* 方向鍵：浮在場景右下角 */
 .pad{position:absolute;right:12px;bottom:12px;display:grid;grid-template-columns:repeat(3,42px);
   grid-template-rows:repeat(3,42px);gap:3px;opacity:.9;z-index:5}
@@ -627,16 +638,26 @@ function spendAP(){
   S.ap--; updateHUD();
   if(S.ap <= 0){ setTimeout(()=>endGame('B', true), 600); }
 }
+let toastTimer = null;
+function toast(k){
+  const sc = SCENES[k];
+  const old = $('#stage .toast'); if(old) old.remove();
+  clearTimeout(toastTimer);
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = '<b>' + sc.name + '</b><span>' + (sc.floor || '') + '</span>';
+  $('#stage').appendChild(el);
+  toastTimer = setTimeout(() => el.remove(), 2000);
+}
 function travel(ex){
   if(ex.need && !S.layers.every(Boolean)) return say('', [ex.locked]);
-  const to = SCENES[ex.to];
   S.scene = ex.to; S.px = ex.at[0]; S.py = ex.at[1]; S.moving = []; S.pending = null;
   dims = ''; updateHUD();
   if(ex.to === 'flower' && !S.seen.flowerIntro){
     S.seen.flowerIntro = true;
     say('小花園', ['穿過展演台後面，有一小塊沒什麼人會來的草地。','小禾坐在長椅旁邊。']);
   } else {
-    say(to.name, ['你來到' + to.name + '。']);
+    toast(ex.to);
   }
 }
 function openObject(o){
@@ -823,7 +844,7 @@ function openMap(){
           if(k === 'flower' && !S.seen.flowerIntro){
             S.seen.flowerIntro = true;
             say('小花園', ['穿過展演台後面，有一小塊沒什麼人會來的草地。','小禾坐在長椅旁邊。']);
-          }
+          } else toast(k);
         };
         plan.appendChild(cell);
       });
