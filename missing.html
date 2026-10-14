@@ -47,18 +47,22 @@ button{font:inherit;cursor:pointer}
 /* 場景 */
 .stage{position:relative;padding:8px;display:flex;flex-direction:column;align-items:center;gap:8px}
 .place{font-family:var(--px);font-size:10px;color:var(--gold);letter-spacing:.06em;align-self:flex-start;padding:2px 4px}
-canvas{image-rendering:pixelated;width:100%;height:auto;display:block;background:#0d1116;border:2px solid var(--edge)}
-.hintline{font-size:12px;color:var(--dim);text-align:center}
+canvas{image-rendering:pixelated;display:block;background:#0d1116;border:2px solid var(--edge);margin-inline:auto}
+.hintline{font-size:12px;color:var(--dim);text-align:center;margin:0}
 
-/* 方向鍵 */
-.pad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,52px);gap:4px;justify-content:center}
-.pad button{background:var(--panel2);border:2px solid var(--edge);box-shadow:0 3px 0 #0b0e12;color:var(--ink);
-  font-size:18px;border-radius:2px}
+/* 方向鍵：浮在場景右下角 */
+.pad{position:absolute;right:12px;bottom:12px;display:grid;grid-template-columns:repeat(3,42px);
+  grid-template-rows:repeat(3,42px);gap:3px;opacity:.9;z-index:5}
+.pad button{background:rgba(40,51,65,.92);border:2px solid var(--edge);box-shadow:0 3px 0 #0b0e12;color:var(--ink);
+  font-size:15px;border-radius:2px}
+@media (max-width:520px){.pad{grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px);right:6px;bottom:6px}}
 .pad button:active{transform:translateY(2px);box-shadow:0 1px 0 #0b0e12}
 .pad .mid{background:transparent;border:none;box-shadow:none;cursor:default}
 
-/* 對話框 */
-.dlg{padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+/* 對話框：固定在畫面底部 */
+.dlg{position:fixed;left:0;right:0;bottom:0;z-index:12;border-radius:0;border-left:none;border-right:none;
+  box-shadow:0 -3px 0 var(--hi);max-height:52vh;overflow:auto;
+  padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px}
 .dlg .who{font-family:var(--px);font-size:10px;color:var(--gold);letter-spacing:.06em}
 .dlg .text{font-size:16px;line-height:1.8;min-height:3.4em}
 .dlg .text em{font-style:normal;color:var(--gold)}
@@ -67,7 +71,6 @@ canvas{image-rendering:pixelated;width:100%;height:auto;display:block;background
 .opt{text-align:left;background:var(--panel2);border:2px solid var(--edge);box-shadow:0 3px 0 #0b0e12;
   color:var(--ink);padding:10px 12px;line-height:1.6;border-radius:2px}
 .opt:active{transform:translateY(2px);box-shadow:0 1px 0 #0b0e12}
-.opt .tag{display:inline-block;font-size:11px;color:var(--dim);margin-right:6px}
 
 /* 覆蓋視窗 */
 .sheet{position:fixed;inset:0;background:rgba(8,11,15,.86);display:flex;align-items:flex-start;
@@ -500,11 +503,20 @@ function drawChar(cx, cy, pal, dir, step){
   }
 }
 
-let tick = 0;
+function fit(){
+  const availW = Math.min(($('.wrap').clientWidth || 360) - 28, 1000);
+  const availH = Math.max(190, innerHeight * 0.56);
+  const s = Math.max(1, Math.floor(Math.min(availW/cv.width, availH/cv.height) * 2) / 2);
+  cv.style.width = Math.round(cv.width * s) + 'px';
+}
+addEventListener('resize', fit);
+
+let tick = 0, dims = '';
 function draw(){
   tick++;
   const m = map();
-  cv.width = m[0].length*T; cv.height = m.length*T;
+  const d = m[0].length + 'x' + m.length;
+  if(d !== dims){ dims = d; cv.width = m[0].length*T; cv.height = m.length*T; fit(); }
   ctx.imageSmoothingEnabled = false;
   for(let y=0;y<m.length;y++) for(let x=0;x<m[0].length;x++) drawTile(m[y][x], x, y);
 
@@ -589,7 +601,7 @@ function openNPC(n){
 function askMenu(n){
   const key = S.scene + n.who;
   showOptions(n.who, '你要怎麼問？', (n.qs||[]).map(q => ({
-    label:'<span class="tag">'+q.type+'</span>'+q.q,
+    label:q.q,
     run:()=>{
       spendAP(); S.asked[key] = true;
       if(q.clue) S.clues.add(q.clue);
@@ -598,14 +610,15 @@ function askMenu(n){
       if(q.clue) lines.push('【線索入手】' + CLUES[q.clue].title);
       say(n.who, lines);
     }
-  })).concat([{ label:'<span class="tag">離開</span>先不問了', run:()=>closeDialog() }]));
+  })).concat([{ label:'先不問了', run:()=>closeDialog() }]));
 }
 
 /* ============ 對話 UI ============ */
 let dq = [], dafter = null;
 function say(who, lines, after){
   S.phase = 'dialog'; dq = lines.slice(); dafter = after || null;
-  $('#dlg').hidden = false; $('#dwho').textContent = who; $('#dopts').innerHTML = '';
+  $('#dlg').hidden = false; $('#pad').hidden = true; $('#dwho').textContent = who; $('#dopts').innerHTML = '';
+  scrollTo({top:0});
   nextLine();
 }
 function nextLine(){
@@ -619,7 +632,8 @@ function nextLine(){
 }
 function showOptions(who, prompt, opts){
   S.phase = 'dialog';
-  $('#dlg').hidden = false; $('#dwho').textContent = who; $('#dtext').textContent = prompt; $('#dmore').textContent = '';
+  $('#dlg').hidden = false; $('#pad').hidden = true; $('#dwho').textContent = who; $('#dtext').textContent = prompt; $('#dmore').textContent = '';
+  scrollTo({top:0});
   const box = $('#dopts'); box.innerHTML = '';
   opts.forEach(o=>{
     const b = document.createElement('button');
@@ -628,7 +642,7 @@ function showOptions(who, prompt, opts){
     box.appendChild(b);
   });
 }
-function closeDialog(){ $('#dlg').hidden = true; $('#dopts').innerHTML = ''; if(S.phase==='dialog') S.phase = 'play'; }
+function closeDialog(){ $('#dlg').hidden = true; $('#pad').hidden = false; $('#dopts').innerHTML = ''; if(S.phase==='dialog') S.phase = 'play'; }
 $('#dlg').addEventListener('click', e => { if(e.target.closest('.opt')) return; if($('#dopts').children.length) return; nextLine(); });
 
 /* ============ HUD ============ */
