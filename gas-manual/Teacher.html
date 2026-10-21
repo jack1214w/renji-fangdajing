@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+:root{
+  --paper:#F4F1E9; --card:#FFFDF7; --ink:#2E2A24; --dim:#6B6350; --line:#D9D0BA;
+  --accent:#4A76A8; --accent-soft:#E4EBF4; --warn:#8A2F2A; --ok:#3F7050;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.7;padding:16px}
+.wrap{max-width:1100px;margin-inline:auto;display:flex;flex-direction:column;gap:14px}
+h1{font-size:24px;margin:0}
+.sub{font-size:13px;color:var(--dim)}
+.card{background:var(--card);border:1.5px solid var(--line);padding:14px 16px}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+label{display:block;font-size:13px;color:var(--dim);margin-bottom:4px}
+input,select{font:inherit;border:1.5px solid var(--line);border-radius:4px;padding:8px 10px;background:#fff;color:var(--ink)}
+button{font:inherit;cursor:pointer;border-radius:4px;border:1.5px solid var(--ink);padding:8px 15px;font-weight:700;background:#fff;color:var(--ink)}
+button.main{background:var(--accent);border-color:var(--accent);color:#fff}
+button.ghost{border-color:var(--line);font-weight:400}
+.msg{font-size:14px;color:var(--warn)}
+.count{font-size:13px;color:var(--dim)}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.m{background:var(--card);border:1.5px solid var(--line);border-top:4px solid var(--accent);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.m h3{margin:0;font-size:16px}
+.m .meta{font-size:12px;color:var(--dim)}
+.m dl{margin:4px 0 0;display:grid;grid-template-columns:5.5em 1fr;gap:4px 10px;font-size:14px}
+.m dt{color:var(--dim)}
+.m dd{margin:0;white-space:pre-wrap}
+.lv{font-size:11px;border:1px solid var(--line);padding:0 6px;border-radius:99px;color:var(--dim);margin-left:4px}
+.lv.公開{border-color:var(--ok);color:var(--ok)}
+.lv.只給老師{border-color:var(--warn);color:var(--warn)}
+.empty{color:var(--dim)}
+@media print{
+  body{background:#fff;padding:0}
+  .noprint{display:none!important}
+  .cards{grid-template-columns:1fr 1fr}
+  .m{break-inside:avoid;border-color:#999}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>我的使用說明書・老師檢視</h1>
+    <p class="sub">學生填寫的內容會即時存進試算表，這裡只是方便上課時快速瀏覽。</p>
+  </div>
+
+  <div class="card noprint">
+    <div class="row">
+      <div><label for="pw">教師密碼</label><input type="password" id="pw" autocomplete="off"></div>
+      <div><label for="cls">班級（留空＝全部）</label><input type="text" id="cls" autocomplete="off"></div>
+      <div><label for="only">顯示範圍</label>
+        <select id="only">
+          <option value="all">全部欄位</option>
+          <option value="public">只看學生願意公開的</option>
+        </select>
+      </div>
+      <button class="main" id="go" type="button">讀取</button>
+      <button class="ghost" id="print" type="button">列印</button>
+      <button class="ghost" id="sheet" type="button">開啟試算表</button>
+    </div>
+    <p class="msg" id="msg"></p>
+  </div>
+
+  <p class="count" id="count"></p>
+  <div class="cards" id="list"></div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
+
+function render(rows, publicOnly) {
+  const box = $('#list');
+  if (!rows.length) { box.innerHTML = '<p class="empty">還沒有人儲存。</p>'; $('#count').textContent = ''; return; }
+  $('#count').textContent = '共 ' + rows.length + ' 份';
+  box.innerHTML = rows.map(r => {
+    // 欄位順序對應後端 HEADERS
+    const [time, cls, no, name, model, use, useOpen, charge, drain, powerOpen,
+           warn, warnOpen, trouble, troubleOpen, warranty, warrantyOpen, review] = r;
+    const item = (label, value, level) => {
+      if (!value) return '';
+      if (publicOnly && level !== '公開') return '';
+      return '<dt>' + label + '</dt><dd>' + esc(value) +
+        (level ? '<span class="lv ' + level + '">' + level + '</span>' : '') + '</dd>';
+    };
+    const power = [charge ? '充電：' + charge : '', drain ? '耗電：' + drain : ''].filter(Boolean).join('\n');
+    return '<div class="m"><h3>' + esc(name) + '　<span class="meta">' + esc(cls) + ' ' + esc(no) + '</span></h3>'
+      + '<div class="meta">最後更新 ' + esc(time) + '</div>'
+      + '<dl>'
+      + item('產品型號', model, '')
+      + item('使用方法', use, useOpen)
+      + item('電力來源', power, powerOpen)
+      + item('注意事項', warn, warnOpen)
+      + item('故障排除', trouble, troubleOpen)
+      + item('保固條款', warranty, warrantyOpen)
+      + item('兩週後回顧', review, '')
+      + '</dl></div>';
+  }).join('');
+}
+
+$('#go').onclick = () => {
+  const pw = $('#pw').value.trim();
+  if (!pw) { $('#msg').textContent = '請輸入教師密碼。'; return; }
+  $('#msg').textContent = '讀取中⋯';
+  google.script.run
+    .withSuccessHandler(res => {
+      if (!res.ok) { $('#msg').textContent = res.msg; return; }
+      $('#msg').textContent = '';
+      render(res.rows, $('#only').value === 'public');
+      try { sessionStorage.setItem('tpw', pw); } catch (e) {}
+    })
+    .withFailureHandler(err => { $('#msg').textContent = '連線失敗：' + err.message; })
+    .listManuals(pw, $('#cls').value.trim());
+};
+
+$('#only').onchange = () => { if ($('#list').children.length) $('#go').click(); };
+$('#print').onclick = () => window.print();
+$('#sheet').onclick = () => {
+  const pw = $('#pw').value.trim();
+  google.script.run.withSuccessHandler(res => {
+    if (res.ok) window.open(res.url, '_blank'); else $('#msg').textContent = res.msg;
+  }).sheetUrl(pw);
+};
+try { const p = sessionStorage.getItem('tpw'); if (p) { $('#pw').value = p; $('#go').click(); } } catch (e) {}
+</script>
+</body>
+</html>

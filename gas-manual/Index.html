@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+:root{
+  --paper:#F4F1E9; --card:#FFFDF7; --ink:#2E2A24; --dim:#6B6350; --line:#D9D0BA;
+  --accent:#4A76A8; --accent-soft:#E4EBF4; --warn:#8A2F2A; --warn-soft:#F6E7E3;
+  --ok:#3F7050; --gold:#B07D14;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --mono:ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.75;
+  padding:14px 14px 90px;-webkit-text-size-adjust:100%}
+.wrap{max-width:720px;margin-inline:auto;display:flex;flex-direction:column;gap:14px}
+
+.cover{background:var(--card);border:2px solid var(--ink);box-shadow:4px 4px 0 var(--line);padding:18px}
+.barcode{font-family:var(--mono);letter-spacing:-1px;text-align:right;font-size:18px;color:var(--ink)}
+h1{font-size:30px;margin:4px 0 2px;letter-spacing:.02em}
+.sub{font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.08em}
+.lead{margin:12px 0 0}
+
+.who{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+@media (max-width:520px){.who{grid-template-columns:1fr 1fr}.who .full{grid-column:1/-1}}
+label{display:block;font-size:13px;color:var(--dim);margin-bottom:4px}
+input[type=text],textarea,select{width:100%;font:inherit;color:var(--ink);background:#fff;
+  border:1.5px solid var(--line);border-radius:4px;padding:9px 11px}
+textarea{line-height:1.8;resize:vertical}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+
+.sec{background:var(--card);border:1.5px solid var(--line);border-left:5px solid var(--accent);padding:14px 16px}
+.sec.warnbox{border-left-color:var(--warn);background:var(--warn-soft)}
+.sec h2{font-size:17px;margin:0 0 2px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sec h2 .no{font-family:var(--mono);font-size:13px;color:var(--accent)}
+.sec .hint{font-size:13px;color:var(--dim);margin:0 0 10px}
+.sec.warnbox h2 .no{color:var(--warn)}
+
+.open{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.open b{font-size:12px;color:var(--dim);font-weight:400;margin-right:2px}
+.open label{display:inline-flex;align-items:center;gap:5px;margin:0;font-size:13px;color:var(--ink);
+  border:1.5px solid var(--line);border-radius:99px;padding:4px 11px;cursor:pointer;background:#fff}
+.open input{accent-color:#4A76A8;margin:0}
+.open label:has(input:checked){border-color:var(--accent);background:var(--accent-soft);font-weight:700}
+
+table.trouble{width:100%;border-collapse:collapse;margin-top:6px}
+table.trouble th{font-size:12px;color:var(--dim);font-weight:500;text-align:left;padding:4px 6px}
+table.trouble td{padding:4px 6px;vertical-align:top}
+table.trouble textarea{min-height:64px}
+@media (max-width:620px){
+  table.trouble, table.trouble tbody, table.trouble tr, table.trouble td{display:block;width:100%}
+  table.trouble thead{display:none}
+  table.trouble tr{border:1.5px dashed var(--line);border-radius:6px;padding:8px;margin-bottom:10px}
+  table.trouble td::before{content:attr(data-l);display:block;font-size:12px;color:var(--dim);margin-bottom:2px}
+}
+
+.tip{background:#F6EBD2;border-left:4px solid var(--gold);padding:10px 14px;font-size:14px}
+.tip b{color:#8A6210}
+.flag{color:var(--warn);font-size:13px;margin-top:6px;display:none}
+.flag.on{display:block}
+
+details.ex{background:var(--card);border:1.5px solid var(--line);padding:0 14px}
+details.ex summary{cursor:pointer;padding:12px 0;font-weight:700;color:var(--accent)}
+details.ex table{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:12px}
+details.ex td{border:1px solid var(--line);padding:7px 9px;vertical-align:top}
+details.ex td:first-child{width:7.5em;font-weight:700;background:#EEF2F6}
+.ban{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0}
+.ban span{text-decoration:line-through;color:var(--warn);border:1px solid var(--line);padding:2px 8px;font-size:13px;background:#fff}
+
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:2px solid var(--ink);
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;align-items:center;flex-wrap:wrap;z-index:9}
+.bar .state{font-size:13px;color:var(--dim);flex:1;min-width:120px}
+button{font:inherit;cursor:pointer;border-radius:4px;border:1.5px solid var(--ink);padding:9px 16px;font-weight:700;
+  background:#fff;color:var(--ink)}
+button.main{background:var(--accent);border-color:var(--accent);color:#fff}
+button.ghost{border-color:var(--line);font-weight:400}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.small{padding:5px 11px;font-size:13px;font-weight:400}
+.msg{font-size:14px;padding:8px 12px;border-radius:4px;display:none}
+.msg.on{display:block}
+.msg.good{background:#E3EFE6;color:var(--ok)}
+.msg.bad{background:var(--warn-soft);color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="cover">
+    <div class="barcode">▌▏▌▌▏▌▏▏▌▌▏▌▏▌▏▏▌▏▌▌▏▌</div>
+    <h1>我的使用說明書</h1>
+    <div class="sub">USER MANUAL　版本 1.0　本手冊由本人撰寫</div>
+    <p class="lead">如果你也有一本使用說明書，上面會寫什麼？別人要怎麼做，才不會不小心弄壞你？</p>
+    <div class="who">
+      <div><label for="cls">班級</label><input type="text" id="cls" autocomplete="off" placeholder="例：五年三班"></div>
+      <div><label for="no">座號</label><input type="text" id="no" inputmode="numeric" autocomplete="off"></div>
+      <div><label for="name">姓名</label><input type="text" id="name" autocomplete="off"></div>
+      <div class="full"><button class="small ghost" id="load" type="button">載入我之前寫的</button></div>
+    </div>
+    <div class="msg" id="loadmsg"></div>
+  </div>
+
+  <div class="tip">
+    <b>三件事</b>：每一欄都可以自己決定要給誰看。沒有人可以拿別人的說明書開玩笑。老師也會寫一份。
+  </div>
+
+  <details class="ex">
+    <summary>先看看小禾的說明書（寫之前建議看一下）</summary>
+    <table>
+      <tr><td>產品型號</td><td>慢熱型・需預熱三分鐘</td></tr>
+      <tr><td>使用方法</td><td>問我問題之後，請等我幾秒。我沒有馬上回答，不是不想回答，是還在想。<br>讓我用寫的，我可以寫得比說得清楚。</td></tr>
+      <tr><td>電力來源</td><td>充電：有人跟我說「不急」。一個人看書的午休。<br>耗電：被催。很多人同時看著我等我講話。</td></tr>
+      <tr><td>注意事項</td><td>請不要幫我把話說完。就算你猜對了，那也不是我想說的那句。</td></tr>
+      <tr><td>故障排除</td><td>突然不說話了｜通常不是生氣，是還沒想好｜等我三分鐘，或說「你慢慢想」</td></tr>
+      <tr><td>保固條款</td><td>踩到我的雷，直接說「對不起，我剛剛太急了」。我不會記很久。但如果你裝作沒發生，我會記很久。</td></tr>
+    </table>
+    <p class="hint" style="font-size:13px;color:var(--dim)">這些詞不要用，因為別人讀完還是不知道要怎麼對你：</p>
+    <div class="ban"><span>我很好相處</span><span>隨和</span><span>開朗</span><span>普通</span><span>還可以</span><span>看情況</span></div>
+  </details>
+
+  <div class="sec">
+    <h2><span class="no">01</span>產品型號</h2>
+    <p class="hint">一句話形容自己，可以有點好笑。例：慢熱型・需預熱三分鐘</p>
+    <input type="text" id="model" maxlength="40" placeholder="＿＿＿型・＿＿＿＿＿＿">
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">02</span>使用方法</h2>
+    <p class="hint">怎麼跟我相處會順？公式：當我＿＿＿的時候，請你＿＿＿，不要＿＿＿。因為＿＿＿。</p>
+    <textarea id="useText" rows="4" placeholder="當我⋯的時候，請你⋯，不要⋯。因為⋯"></textarea>
+    <div class="flag" data-for="useText"></div>
+    <div class="open" data-open="useOpen"></div>
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">03</span>電力來源</h2>
+    <p class="hint">什麼會讓我充電？什麼會讓我耗電？各寫一到兩件具體的事。</p>
+    <label for="chargeText">充電</label>
+    <textarea id="chargeText" rows="3" placeholder="例：有人跟我說「不急」"></textarea>
+    <label for="drainText" style="margin-top:8px">耗電</label>
+    <textarea id="drainText" rows="3" placeholder="例：很多人同時看著我等我講話"></textarea>
+    <div class="flag" data-for="chargeText"></div>
+    <div class="open" data-open="powerOpen"></div>
+  </div>
+
+  <div class="sec warnbox">
+    <h2><span class="no">04</span>【警告】注意事項</h2>
+    <p class="hint">什麼話、什麼做法會讓我不舒服？這一欄最難寫，也最重要。你可以只給老師看。</p>
+    <textarea id="warnText" rows="4" placeholder="請不要⋯。因為⋯"></textarea>
+    <div class="open" data-open="warnOpen"></div>
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">05</span>故障排除</h2>
+    <p class="hint">三格都要填：狀況、可能的原因（通常不是別人想的那樣）、建議的處理方式。</p>
+    <table class="trouble">
+      <thead><tr><th style="width:30%">當我出現這個狀況</th><th style="width:34%">可能的原因</th><th>建議的處理方式</th></tr></thead>
+      <tbody id="troubleBody"></tbody>
+    </table>
+    <button class="small ghost" id="addRow" type="button">＋ 再加一列</button>
+    <div class="open" data-open="troubleOpen"></div>
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">06</span>保固條款</h2>
+    <p class="hint">如果有人不小心弄壞了你，他要怎麼修？什麼樣的道歉你收得下來？</p>
+    <textarea id="warrantyText" rows="3" placeholder="如果你⋯，請你⋯"></textarea>
+    <div class="open" data-open="warrantyOpen"></div>
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">07</span>兩週後回顧</h2>
+    <p class="hint">兩週後再回來填：有人照著我的說明書對我嗎？發生了什麼事？（現在可以先空著）</p>
+    <textarea id="reviewText" rows="3"></textarea>
+  </div>
+
+  <div class="msg" id="msg"></div>
+</div>
+
+<div class="bar">
+  <span class="state" id="state">還沒儲存</span>
+  <button class="ghost" id="preview" type="button">預覽</button>
+  <button class="main" id="save" type="button">儲存</button>
+</div>
+
+<script>
+const BAN = ['我很好相處','好相處','隨和','開朗','普通','還可以','看情況'];
+const OPEN_LEVELS = ['公開','小組','只給老師'];
+const FIELDS = ['cls','no','name','model','useText','chargeText','drainText','warnText','warrantyText','reviewText'];
+const OPENS = ['useOpen','powerOpen','warnOpen','troubleOpen','warrantyOpen'];
+const $ = s => document.querySelector(s);
+
+/* 開放程度選項 */
+document.querySelectorAll('[data-open]').forEach(box => {
+  const key = box.dataset.open;
+  box.innerHTML = '<b>這一欄給誰看：</b>' + OPEN_LEVELS.map((lv, i) =>
+    '<label><input type="radio" name="' + key + '" value="' + lv + '"' +
+    (i === (key === 'warnOpen' ? 2 : 1) ? ' checked' : '') + '>' + lv + '</label>').join('');
+});
+
+/* 故障排除列 */
+function addTroubleRow(v) {
+  const tb = $('#troubleBody');
+  const tr = document.createElement('tr');
+  const mk = (k, l, ph) => '<td data-l="' + l + '"><textarea data-t="' + k + '" rows="2" placeholder="' + ph + '"></textarea></td>';
+  tr.innerHTML = mk('s','當我出現這個狀況','例：突然不說話了')
+    + mk('c','可能的原因','例：不是生氣，是還沒想好')
+    + mk('a','建議的處理方式','例：等我三分鐘');
+  tb.appendChild(tr);
+  if (v) {
+    tr.querySelector('[data-t="s"]').value = v.s || '';
+    tr.querySelector('[data-t="c"]').value = v.c || '';
+    tr.querySelector('[data-t="a"]').value = v.a || '';
+  }
+  tr.querySelectorAll('textarea').forEach(t => t.addEventListener('input', saveDraft));
+}
+$('#addRow').onclick = () => addTroubleRow();
+addTroubleRow(); addTroubleRow();
+
+/* 空話提醒 */
+function checkBan() {
+  document.querySelectorAll('.flag').forEach(f => {
+    const el = $('#' + f.dataset.for);
+    const hit = BAN.filter(w => (el.value || '').includes(w));
+    f.className = 'flag' + (hit.length ? ' on' : '');
+    f.textContent = hit.length ? '「' + hit.join('」「') + '」這種說法，別人讀完還是不知道要怎麼對你。試試看：當我＿＿的時候，請你＿＿。' : '';
+  });
+}
+
+/* 收集與填入 */
+function collect() {
+  const d = {};
+  FIELDS.forEach(k => d[k] = ($('#' + k).value || '').trim());
+  OPENS.forEach(k => {
+    const el = document.querySelector('input[name="' + k + '"]:checked');
+    d[k] = el ? el.value : '只給老師';
+  });
+  d.trouble = [...document.querySelectorAll('#troubleBody tr')].map(tr => ({
+    s: tr.querySelector('[data-t="s"]').value.trim(),
+    c: tr.querySelector('[data-t="c"]').value.trim(),
+    a: tr.querySelector('[data-t="a"]').value.trim()
+  })).filter(r => r.s || r.c || r.a);
+  return d;
+}
+function fill(d) {
+  FIELDS.forEach(k => { if (d[k] != null) $('#' + k).value = d[k]; });
+  OPENS.forEach(k => {
+    const el = document.querySelector('input[name="' + k + '"][value="' + d[k] + '"]');
+    if (el) el.checked = true;
+  });
+  $('#troubleBody').innerHTML = '';
+  (d.trouble && d.trouble.length ? d.trouble : [null, null]).forEach(r => addTroubleRow(r));
+  checkBan();
+}
+
+/* 草稿（只存在這台裝置） */
+function saveDraft() {
+  checkBan();
+  try { localStorage.setItem('manual-draft', JSON.stringify(collect())); } catch (e) {}
+}
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem('manual-draft');
+    if (raw) fill(JSON.parse(raw));
+  } catch (e) {}
+}
+document.querySelectorAll('input,textarea').forEach(el => el.addEventListener('input', saveDraft));
+document.querySelectorAll('input[type=radio]').forEach(el => el.addEventListener('change', saveDraft));
+loadDraft();
+
+function flash(el, text, good) {
+  el.textContent = text;
+  el.className = 'msg on ' + (good ? 'good' : 'bad');
+  if (good) setTimeout(() => { el.className = 'msg'; }, 4000);
+}
+
+/* 儲存到試算表 */
+$('#save').onclick = () => {
+  const d = collect();
+  if (!d.cls || !d.no || !d.name) return flash($('#msg'), '請先填寫班級、座號、姓名。', false);
+  $('#save').disabled = true; $('#state').textContent = '儲存中⋯';
+  google.script.run
+    .withSuccessHandler(res => {
+      $('#save').disabled = false;
+      if (res.ok) {
+        $('#state').textContent = '已儲存　' + res.savedAt;
+        flash($('#msg'), '儲存成功。之後可以用「載入我之前寫的」回來修改。', true);
+      } else {
+        $('#state').textContent = '尚未儲存';
+        flash($('#msg'), res.msg, false);
+      }
+    })
+    .withFailureHandler(err => {
+      $('#save').disabled = false;
+      $('#state').textContent = '尚未儲存';
+      flash($('#msg'), '連線失敗：' + err.message, false);
+    })
+    .saveManual(d);
+};
+
+/* 讀回之前寫的 */
+$('#load').onclick = () => {
+  const q = { cls: $('#cls').value.trim(), no: $('#no').value.trim(), name: $('#name').value.trim() };
+  if (!q.cls || !q.no || !q.name) return flash($('#loadmsg'), '請先填寫班級、座號、姓名。', false);
+  $('#load').disabled = true;
+  google.script.run
+    .withSuccessHandler(res => {
+      $('#load').disabled = false;
+      if (res.ok) {
+        fill(Object.assign(q, res.data));
+        flash($('#loadmsg'), '已載入（上次儲存：' + res.savedAt + '）', true);
+        $('#state').textContent = '已儲存　' + res.savedAt;
+      } else {
+        flash($('#loadmsg'), res.msg, false);
+      }
+    })
+    .withFailureHandler(err => { $('#load').disabled = false; flash($('#loadmsg'), '連線失敗：' + err.message, false); })
+    .loadManual(q);
+};
+
+/* 預覽：排成一張說明書，方便截圖或列印 */
+$('#preview').onclick = () => {
+  const d = collect();
+  const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const br = s => esc(s).replace(/\n/g, '<br>');
+  const rows = [
+    ['產品型號', esc(d.model)],
+    ['使用方法', br(d.useText)],
+    ['電力來源', (d.chargeText ? '充電：' + br(d.chargeText) + '<br>' : '') + (d.drainText ? '耗電：' + br(d.drainText) : '')],
+    ['注意事項', br(d.warnText)],
+    ['故障排除', d.trouble.map(r => esc(r.s) + '｜' + esc(r.c) + '｜' + esc(r.a)).join('<br>')],
+    ['保固條款', br(d.warrantyText)]
+  ].filter(r => r[1]);
+  const w = window.open('', '_blank');
+  w.document.write('<!DOCTYPE html><meta charset="utf-8"><title>我的使用說明書</title>'
+    + '<style>body{font-family:system-ui,"Noto Sans TC",sans-serif;background:#F4F1E9;color:#2E2A24;padding:28px;line-height:1.8}'
+    + '.p{max-width:620px;margin:auto;background:#FFFDF7;border:2px solid #2E2A24;box-shadow:5px 5px 0 #D9D0BA;padding:24px}'
+    + 'h1{margin:0 0 2px;font-size:26px}.s{font-family:monospace;font-size:12px;color:#6B6350;margin-bottom:14px}'
+    + 'table{width:100%;border-collapse:collapse}td{border:1px solid #D9D0BA;padding:9px 11px;vertical-align:top}'
+    + 'td:first-child{width:7.5em;font-weight:700;background:#EEF2F6}</style>'
+    + '<div class="p"><h1>' + esc(d.name || '我') + ' 的使用說明書</h1>'
+    + '<div class="s">' + esc(d.cls) + '　座號 ' + esc(d.no) + '　版本 1.0</div>'
+    + '<table>' + rows.map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</table></div>');
+  w.document.close();
+};
+</script>
+</body>
+</html>
