@@ -106,6 +106,7 @@ canvas{image-rendering:pixelated;display:block;background:#0d1116;border:2px sol
 .opt{text-align:left;background:var(--panel2);border:2px solid var(--edge);box-shadow:0 3px 0 #0b0e12;
   color:var(--ink);padding:10px 12px;line-height:1.6;border-radius:2px}
 .opt:active{transform:translateY(2px);box-shadow:0 1px 0 #0b0e12}
+.opt .tick{color:var(--dim);font-size:12px;margin-right:6px}
 
 /* 覆蓋視窗 */
 .sheet{position:fixed;inset:0;background:rgba(8,11,15,.86);display:flex;align-items:flex-start;
@@ -489,7 +490,8 @@ const ENDINGS = {
 const S = {
   phase:'case', scene:'classroom', px:0, py:0, dir:'down',
   ap:25, apMax:25, clues:new Set(), layers:[false,false,false], asked:{}, seen:{},
-  moving:[], anim:null, pending:null, ending:null, repaired:false
+  moving:[], anim:null, pending:null, ending:null, repaired:false,
+  bumped:null, quiet:0
 };
 const $ = s => document.querySelector(s);
 const cv = $('#cv'), ctx = cv.getContext('2d');
@@ -641,7 +643,7 @@ function stepAnim(){
   if(!S.moving.length){ S.anim = null; if(S.pending){ const p = S.pending; S.pending = null; p(); } return; }
   const [nx,ny] = S.moving.shift();
   S.dir = nx > S.px ? 'right' : nx < S.px ? 'left' : ny > S.py ? 'down' : 'up';
-  S.px = nx; S.py = ny;
+  S.px = nx; S.py = ny; S.bumped = null;
   S.anim = setTimeout(stepAnim, 110);
 }
 function goTo(tx, ty, then){
@@ -677,7 +679,7 @@ function toast(k){
 }
 function travel(ex){
   if(ex.need && !S.layers.every(Boolean)) return say('', [ex.locked]);
-  S.scene = ex.to; S.px = ex.at[0]; S.py = ex.at[1]; S.moving = []; S.pending = null;
+  S.scene = ex.to; S.px = ex.at[0]; S.py = ex.at[1]; S.moving = []; S.pending = null; S.bumped = null;
   dims = ''; updateHUD();
   if(ex.to === 'flower' && !S.seen.flowerIntro){
     S.seen.flowerIntro = true;
@@ -703,14 +705,14 @@ function openNPC(n){
 function askMenu(n){
   const key = S.scene + n.who;
   showOptions(n.who, '你要怎麼問？', (n.qs||[]).map(q => ({
-    label:q.q,
+    label:(S.seen[key+q.q] ? '<span class="tick">✓</span>' : '') + q.q,
     run:()=>{
-      spendAP(); S.asked[key] = true;
+      spendAP(); S.asked[key] = true; S.seen[key+q.q] = true;
       if(q.clue) S.clues.add(q.clue);
       updateHUD();
       const lines = q.lines.slice();
       if(q.clue) lines.push('【線索入手】' + CLUES[q.clue].title);
-      say(n.who, lines);
+      say(n.who, lines, () => askMenu(n));
     }
   })).concat([{ label:'先不問了', run:()=>closeDialog() }]));
 }
@@ -745,7 +747,11 @@ function showOptions(who, prompt, opts){
     box.appendChild(b);
   });
 }
-function closeDialog(){ $('#dlg').hidden = true; $('#stick').hidden = false; $('#dopts').innerHTML = ''; if(S.phase==='dialog') S.phase = 'play'; }
+function closeDialog(){
+  $('#dlg').hidden = true; $('#stick').hidden = false; $('#dopts').innerHTML = '';
+  if(S.phase === 'dialog') S.phase = 'play';
+  S.quiet = performance.now() + 350;   /* 剛關掉對話，先不吃輸入，避免連點又打開 */
+}
 $('#dlg').addEventListener('click', e => { if(e.target.closest('.opt')) return; if($('#dopts').children.length) return; nextLine(); });
 
 /* ============ HUD ============ */
@@ -931,7 +937,7 @@ function endGame(code, timeout){
 
 /* ============ 輸入 ============ */
 cv.addEventListener('click', ev => {
-  if(S.phase !== 'play') return;
+  if(S.phase !== 'play' || performance.now() < S.quiet) return;
   const r = cv.getBoundingClientRect();
   const x = Math.floor((ev.clientX - r.left) / (r.width / cv.width) / T);
   const y = Math.floor((ev.clientY - r.top) / (r.height / cv.height) / T);
@@ -943,13 +949,21 @@ cv.addEventListener('click', ev => {
 });
 function stepDir(dx, dy){
   if(S.phase !== 'play' || S.moving.length) return;
+  if(performance.now() < S.quiet) return;
   const nx = S.px+dx, ny = S.py+dy;
   S.dir = dx>0?'right':dx<0?'left':dy>0?'down':'up';
   const n = npcAt(nx,ny), o = objAt(nx,ny), ex = exitAt(nx,ny);
-  if(n) return openNPC(n);
-  if(o) return openObject(o);
-  if(ex) return travel(ex);
-  if(walkable(nx,ny)){ S.px = nx; S.py = ny; }
+  if(n || o || ex){
+    /* 同一格只觸發一次：壓著搖桿不會重複開對話，
+       關掉對話後也要先走開一步，才會再觸發同一格。 */
+    const tag = S.scene + ':' + nx + ',' + ny;
+    if(S.bumped === tag) return;
+    S.bumped = tag;
+    if(n) return openNPC(n);
+    if(o) return openObject(o);
+    return travel(ex);
+  }
+  if(walkable(nx,ny)){ S.px = nx; S.py = ny; S.bumped = null; }
 }
 /* 虛擬搖桿 */
 const stick = $('#stick'), stickBase = $('#stickbase'), knob = $('#knob');
@@ -972,13 +986,16 @@ function moveStick(ev){
   setStickDir(len < 14 ? null : (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? [1,0] : [-1,0]) : (dy > 0 ? [0,1] : [0,-1])));
 }
 function releaseStick(){
+  if(stickId !== null){ try{ stickBase.releasePointerCapture(stickId); }catch(e){} }
   stickId = null; stick.classList.remove('active');
   knob.style.transform = 'translate(0,0)';
   setStickDir(null);
 }
 stickBase.addEventListener('pointerdown', ev => {
   ev.preventDefault();
-  stickId = ev.pointerId; stickBase.setPointerCapture(ev.pointerId);
+  if(stickId !== null) return;            /* 已經有一根手指在搖桿上，手掌誤觸就不管它 */
+  stickId = ev.pointerId;
+  try{ stickBase.setPointerCapture(ev.pointerId); }catch(e){}
   stick.classList.add('active'); moveStick(ev);
 });
 stickBase.addEventListener('pointermove', ev => { if(ev.pointerId === stickId) moveStick(ev); });
